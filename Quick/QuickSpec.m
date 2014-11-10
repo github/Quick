@@ -81,6 +81,19 @@ const void * const QCKExampleKey = &QCKExampleKey;
 
 #pragma mark - Internal Methods
 
+static const char * const testMethodTypes = "@@:";
+
+static NSMethodSignature *testMethodSignature(void) {
+    static dispatch_once_t pred;
+    static NSMethodSignature *signature;
+
+    dispatch_once(&pred, ^{
+        signature = [NSMethodSignature signatureWithObjCTypes:testMethodTypes];
+    });
+
+    return signature;
+}
+
 /**
  QuickSpec uses this method to dynamically define a new instance method for the
  given example. The instance method runs the example, catching any exceptions.
@@ -101,17 +114,16 @@ const void * const QCKExampleKey = &QCKExampleKey;
     IMP implementation = imp_implementationWithBlock(^(id self){
         [example run];
     });
-    const char *types = [[NSString stringWithFormat:@"%s%s%s", @encode(id), @encode(id), @encode(SEL)] UTF8String];
+
     SEL selector = NSSelectorFromString(example.name.qck_selectorName);
-    class_addMethod(self, selector, implementation, types);
+    class_addMethod(self, selector, implementation, testMethodTypes);
 
     return selector;
 }
 
 + (NSInvocation *)invocationForInstanceMethodWithSelector:(SEL)selector
                                                   example:(Example *)example {
-    NSMethodSignature *signature = [self instanceMethodSignatureForSelector:selector];
-    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:testMethodSignature()];
     invocation.selector = selector;
     objc_setAssociatedObject(invocation,
                              QCKExampleKey,
